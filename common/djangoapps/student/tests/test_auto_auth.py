@@ -3,7 +3,7 @@ from django.test.client import Client
 from django.contrib.auth.models import User
 from util.testing import UrlResetMixin
 from mock import patch
-from django.core.urlresolvers import reverse
+from django.core.urlresolvers import reverse, NoReverseMatch
 
 
 class AutoAuthEnabledTestCase(UrlResetMixin, TestCase):
@@ -19,6 +19,8 @@ class AutoAuthEnabledTestCase(UrlResetMixin, TestCase):
         # of the UrlResetMixin)
         super(AutoAuthEnabledTestCase, self).setUp()
         self.url = '/auto_auth'
+        self.cms_csrf_url = "signup"
+        self.lms_csrf_url = "signin_user"
         self.client = Client()
 
     def test_create_user(self):
@@ -74,8 +76,13 @@ class AutoAuthEnabledTestCase(UrlResetMixin, TestCase):
         test that when load testing, csrf protection is off
         """
         self.client = Client(enforce_csrf_checks=True)
-        csrf_protected_url = reverse("signin_user")
-        response = self.client.get(csrf_protected_url)
+        try:
+            csrf_protected_url = reverse(self.cms_csrf_url)
+            response = self.client.post(csrf_protected_url)
+        except NoReverseMatch:
+            csrf_protected_url = reverse(self.lms_csrf_url)
+            response = self.client.post(csrf_protected_url)
+
         self.assertEqual(response.status_code, 200)
 
 
@@ -92,6 +99,8 @@ class AutoAuthDisabledTestCase(UrlResetMixin, TestCase):
         # of the UrlResetMixin)
         super(AutoAuthDisabledTestCase, self).setUp()
         self.url = '/auto_auth'
+        self.cms_csrf_url = "signup"
+        self.lms_csrf_url = "signin_user"
         self.client = Client()
 
     def test_auto_auth_disabled(self):
@@ -106,7 +115,12 @@ class AutoAuthDisabledTestCase(UrlResetMixin, TestCase):
         test that when not load testing, csrf protection is on
         """
         self.client = Client(enforce_csrf_checks=True)
-        csrf_protected_url = reverse("signin_user")
-        response = self.client.post(csrf_protected_url)
+        try:
+            csrf_protected_url = reverse(self.cms_csrf_url)
+            response = self.client.post(csrf_protected_url)
+        except NoReverseMatch:
+            csrf_protected_url = reverse(self.lms_csrf_url)
+            response = self.client.post(csrf_protected_url)
+
         self.assertEqual(response.status_code, 403)
 
